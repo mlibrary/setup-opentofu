@@ -64,11 +64,11 @@ if [[ -n "${TERRAMATE_VERSION:-}" ]]; then
   validate_version "terramate_version" "${TERRAMATE_VERSION}"
 fi
 
-case "${MACHTYPE%%-*}" in
-  x86_64)  ARCH="amd64" ;;
-  aarch64) ARCH="arm64" ;;
+case "${MACHTYPE}" in
+  x86_64*)  ARCH="amd64" ;;
+  aarch64*) ARCH="arm64" ;;
   *)
-    echo "::error::Unsupported architecture: ${MACHTYPE%%-*}" >&2
+    echo "::error::Unsupported architecture: ${MACHTYPE}" >&2
     exit 1
     ;;
 esac
