@@ -10,7 +10,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        runner: [ubuntu-24.04, ubuntu-24.04-arm, shared-linux-x64]
         include_terramate: [false, true]
     runs-on: ${{ matrix.runner }}
     steps:
@@ -41,7 +41,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        runner: [ubuntu-24.04, ubuntu-24.04-arm, shared-linux-x64]
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4

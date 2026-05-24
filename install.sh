@@ -22,11 +22,11 @@ validate_version() {
 }
 
 detect_arch() {
-  case "$(uname -m)" in
+  case "${MACHTYPE%%-*}" in
     x86_64)  echo "amd64" ;;
     aarch64) echo "arm64" ;;
     *)
-      echo "::error::Unsupported architecture: $(uname -m)" >&2
+      echo "::error::Unsupported architecture: ${MACHTYPE%%-*}" >&2
       exit 1
       ;;
   esac
