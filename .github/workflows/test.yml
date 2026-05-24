@@ -30,11 +30,11 @@ jobs:
           terramate_version: 0.17.0
 
       - name: Verify tofu
-        run: tofu --version
+        run: tofu version
 
       - name: Verify terramate
         if: ${{ matrix.include_terramate }}
-        run: terramate --version
+        run: terramate version
 
   test-prerelease:
     permissions:
@@ -54,10 +54,10 @@ jobs:
           allow_prerelease: true
 
       - name: Verify tofu
-        run: tofu --version
+        run: tofu version
 
       - name: Verify terramate
-        run: terramate --version
+        run: terramate version
 
   test-prerelease-blocked:
     permissions:
