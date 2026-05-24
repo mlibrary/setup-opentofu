@@ -1,0 +1,25 @@
+name: Setup OpenTofu
+description: Installs OpenTofu, and optionally Terramate, from GitHub releases.
+
+inputs:
+  tofu_version:
+    description: OpenTofu version to install (e.g. 1.12.0)
+    required: true
+  terramate_version:
+    description: Terramate version to install (e.g. 0.17.0). Optional.
+    required: false
+    default: ''
+  allow_prerelease:
+    description: Set to 'true' to allow prerelease versions (e.g. 1.8.0-rc1)
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        TOFU_VERSION: ${{ inputs.tofu_version }}
+        TERRAMATE_VERSION: ${{ inputs.terramate_version }}
+        ALLOW_PRERELEASE: ${{ inputs.allow_prerelease }}
+      run: ${{ github.action_path }}/install.sh

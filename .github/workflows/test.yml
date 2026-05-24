@@ -1,0 +1,76 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        include_terramate: [false, true]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenTofu only
+        if: ${{ !matrix.include_terramate }}
+        uses: ./
+        with:
+          tofu_version: 1.12.0
+
+      - name: Install OpenTofu and Terramate
+        if: ${{ matrix.include_terramate }}
+        uses: ./
+        with:
+          tofu_version: 1.12.0
+          terramate_version: 0.17.0
+
+      - name: Verify tofu
+        run: tofu --version
+
+      - name: Verify terramate
+        if: ${{ matrix.include_terramate }}
+        run: terramate --version
+
+  test-prerelease:
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenTofu prerelease and Terramate prerelease
+        uses: ./
+        with:
+          tofu_version: 1.12.0
+          terramate_version: 0.17.1-rc1
+          allow_prerelease: true
+
+      - name: Verify tofu
+        run: tofu --version
+
+      - name: Verify terramate
+        run: terramate --version
+
+  test-prerelease-blocked:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prerelease without allow_prerelease should fail
+        id: should_fail
+        continue-on-error: true
+        uses: ./
+        with:
+          tofu_version: 1.12.0
+          terramate_version: 0.17.1-rc1
+
+      - name: Confirm step failed
+        run: |
+          if [[ "${{ steps.should_fail.outcome }}" != "failure" ]]; then
+            echo "Expected step to fail but it did not"
+            exit 1
+          fi

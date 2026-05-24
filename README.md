@@ -13,4 +13,7 @@ steps:
   with:
     tofu_version: 1.12.0       # required
     terramate_version: 0.17.0  # optional, only needed if you want to install Terramate
+    allow_prerelease: false    # optional, set to true to allow prerelease versions (e.g. 1.8.0-rc1)
 ```
+
+Downloads are verified against the SHA256 checksums file published in each GitHub release.
