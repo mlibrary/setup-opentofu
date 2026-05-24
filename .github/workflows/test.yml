@@ -6,6 +6,8 @@ on:
 
 jobs:
   test:
+    permissions:
+      contents: read
     strategy:
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
@@ -35,6 +37,8 @@ jobs:
         run: terramate --version
 
   test-prerelease:
+    permissions:
+      contents: read
     strategy:
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
@@ -42,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install OpenTofu prerelease and Terramate prerelease
+      - name: Install OpenTofu (stable) and Terramate (prerelease)
         uses: ./
         with:
           tofu_version: 1.12.0
@@ -56,6 +60,8 @@ jobs:
         run: terramate --version
 
   test-prerelease-blocked:
+    permissions:
+      contents: read
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
