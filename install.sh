@@ -5,7 +5,7 @@ STABLE_RE='^[0-9]+\.[0-9]+\.[0-9]+$'
 PRERELEASE_RE='^[0-9]+\.[0-9]+\.[0-9]+-[a-z]+[0-9]+$'
 
 onoe() {
-  echo "$1" >&2
+  echo "::error::$1" >&2
   exit 1
 }
 
@@ -19,9 +19,9 @@ validate_version() {
     if [[ "${ALLOW_PRERELEASE:-false}" == "true" ]]; then
       return 0
     fi
-    onoe "::error::${name} version '${version}' is a prerelease. Set allow_prerelease: true to use prerelease versions."
+    onoe "${name} version '${version}' is a prerelease. Set allow_prerelease: true to use prerelease versions."
   fi
-  onoe "::error::${name} version '${version}' is not a valid version string."
+  onoe "${name} version '${version}' is not a valid version string."
 }
 
 install_tofu() {
@@ -71,7 +71,7 @@ case "${MACHTYPE}" in
   x86_64*)  ARCH="amd64" ;;
   aarch64*) ARCH="arm64" ;;
   *)
-    onoe "::error::Unsupported architecture: ${MACHTYPE}"
+    onoe "Unsupported architecture: ${MACHTYPE}"
     ;;
 esac
 WORK_DIR="$(mktemp -d "${RUNNER_TEMP}/setup-opentofu.XXXXXXXXXX")"
