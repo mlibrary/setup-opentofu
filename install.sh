@@ -70,9 +70,7 @@ fi
 case "${MACHTYPE}" in
   x86_64*)  ARCH="amd64" ;;
   aarch64*) ARCH="arm64" ;;
-  *)
-    onoe "Unsupported architecture: ${MACHTYPE}"
-    ;;
+  *) onoe "Unsupported architecture: ${MACHTYPE}" ;;
 esac
 WORK_DIR="$(mktemp -d "${RUNNER_TEMP}/setup-opentofu.XXXXXXXXXX")"
 trap 'rm -rf "${WORK_DIR}"' EXIT
