@@ -10,7 +10,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm, shared-linux-x64]
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
         include_terramate: [false, true]
     runs-on: ${{ matrix.runner }}
     steps:
@@ -41,7 +41,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm, shared-linux-x64]
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
@@ -75,8 +75,10 @@ jobs:
           terramate_version: 0.17.1-rc1
 
       - name: Confirm step failed
+        env:
+          OUTCOME: ${{ steps.should_fail.outcome }}
         run: |
-          if [[ "${{ steps.should_fail.outcome }}" != "failure" ]]; then
+          if [[ "${OUTCOME}" != "failure" ]]; then
             echo "Expected step to fail but it did not"
             exit 1
           fi
