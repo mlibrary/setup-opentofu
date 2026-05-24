@@ -21,17 +21,6 @@ validate_version() {
   exit 1
 }
 
-detect_arch() {
-  case "${MACHTYPE%%-*}" in
-    x86_64)  echo "amd64" ;;
-    aarch64) echo "arm64" ;;
-    *)
-      echo "::error::Unsupported architecture: ${MACHTYPE%%-*}" >&2
-      exit 1
-      ;;
-  esac
-}
-
 install_tofu() {
   local ver="$1"
   local arch="$2"
@@ -70,14 +59,19 @@ install_terramate() {
   sudo dpkg -i "${dir}/${deb}"
 }
 
-# --- main ---
-
 validate_version "tofu_version" "${TOFU_VERSION}"
 if [[ -n "${TERRAMATE_VERSION:-}" ]]; then
   validate_version "terramate_version" "${TERRAMATE_VERSION}"
 fi
 
-ARCH="$(detect_arch)"
+case "${MACHTYPE%%-*}" in
+  x86_64)  ARCH="amd64" ;;
+  aarch64) ARCH="arm64" ;;
+  *)
+    echo "::error::Unsupported architecture: ${MACHTYPE%%-*}" >&2
+    exit 1
+    ;;
+esac
 WORK_DIR="$(mktemp -d "${RUNNER_TEMP}/setup-opentofu.XXXXXXXXXX")"
 trap 'rm -rf "${WORK_DIR}"' EXIT
 
