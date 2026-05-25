@@ -60,7 +60,8 @@ install_terramate() {
   curl -fsSL -o "${dir}/${pub}"  "${base_url}/${pub}"
 
   echo "Verifying Terramate signature..."
-  base64 -d "${dir}/${sig}" > "${dir}/checksums.txt.sig.bin"
+  base64 -d "${dir}/${sig}" > "${dir}/checksums.txt.sig.bin" \
+    || onoe "Failed to decode Terramate signature file"
   openssl dgst -sha256 -verify "${dir}/${pub}" -signature "${dir}/checksums.txt.sig.bin" "${dir}/${sums}" \
     || onoe "Terramate signature verification failed"
 
