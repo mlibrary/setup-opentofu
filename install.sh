@@ -49,11 +49,20 @@ install_terramate() {
   local dir="$3"
   local deb="terramate_${ver}_linux_${arch}.deb"
   local sums="checksums.txt"
+  local sig="checksums.txt.sig"
+  local pub="cosign.pub"
   local base_url="https://github.com/terramate-io/terramate/releases/download/v${ver}"
 
   echo "Downloading Terramate ${ver} (${arch})..."
   curl -fsSL -o "${dir}/${deb}"  "${base_url}/${deb}"
   curl -fsSL -o "${dir}/${sums}" "${base_url}/${sums}"
+  curl -fsSL -o "${dir}/${sig}"  "${base_url}/${sig}"
+  curl -fsSL -o "${dir}/${pub}"  "${base_url}/${pub}"
+
+  echo "Verifying Terramate signature..."
+  base64 -d "${dir}/${sig}" > "${dir}/checksums.txt.sig.bin"
+  openssl dgst -sha256 -verify "${dir}/${pub}" -signature "${dir}/checksums.txt.sig.bin" "${dir}/${sums}" \
+    || onoe "Terramate signature verification failed"
 
   echo "Verifying Terramate checksum..."
   (cd "${dir}" && grep "${deb}" "${sums}" | sha256sum --check --status)
