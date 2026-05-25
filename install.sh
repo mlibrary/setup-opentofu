@@ -43,6 +43,11 @@ install_tofu() {
   sudo dpkg -i "${dir}/${deb}"
 }
 
+TERRAMATE_COSIGN_PUB='-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETPWlyfCSXqmaw8dZv3nlqiQ/hPKw
+I5KPGKOaYzzYII4Vk6BzG0tvW7LgeEbR7js4lDCv0yMRHtrDe7h1D1ymHg==
+-----END PUBLIC KEY-----'
+
 install_terramate() {
   local ver="$1"
   local arch="$2"
@@ -53,11 +58,12 @@ install_terramate() {
   local pub="cosign.pub"
   local base_url="https://github.com/terramate-io/terramate/releases/download/v${ver}"
 
+  echo "${TERRAMATE_COSIGN_PUB}" > "${dir}/${pub}"
+
   echo "Downloading Terramate ${ver} (${arch})..."
   curl -fsSL -o "${dir}/${deb}"  "${base_url}/${deb}"
   curl -fsSL -o "${dir}/${sums}" "${base_url}/${sums}"
   curl -fsSL -o "${dir}/${sig}"  "${base_url}/${sig}"
-  curl -fsSL -o "${dir}/${pub}"  "${base_url}/${pub}"
 
   echo "Verifying Terramate signature..."
   base64 -d "${dir}/${sig}" > "${dir}/checksums.txt.sig.bin" \
