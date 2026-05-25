@@ -136,7 +136,8 @@ install_terramate() {
     || onoe "Terramate signature verification failed"
 
   echo "Verifying Terramate checksum..."
-  (cd "${dir}" && grep "${deb}" "${sums}" | sha256sum --check --status)
+  (cd "${dir}" && grep "${deb}" "${sums}" | sha256sum --check --status) \
+    || onoe "Terramate checksum verification failed"
 
   echo "Installing Terramate..."
   sudo dpkg -i "${dir}/${deb}"
