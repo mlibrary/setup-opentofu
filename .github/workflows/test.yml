@@ -1,0 +1,87 @@
+name: Run CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+jobs:
+  test:
+    name: "${{ matrix.runner }}: tofu${{ matrix.include_terramate && ' w/ terramate' || '' }}"
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        include_terramate: [false, true]
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Install OpenTofu only
+      if: ${{ !matrix.include_terramate }}
+      uses: ./
+      with:
+        tofu_version: 1.12.0
+    - name: Install OpenTofu and Terramate
+      if: ${{ matrix.include_terramate }}
+      uses: ./
+      with:
+        tofu_version: 1.12.0
+        terramate_version: 0.17.0
+    - name: Verify tofu
+      run: tofu version
+    - name: Verify terramate
+      if: ${{ matrix.include_terramate }}
+      run: terramate version
+
+  test-prerelease:
+    name: "${{ matrix.runner }}: install prerelease"
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Install OpenTofu (stable) and Terramate (prerelease)
+      uses: ./
+      with:
+        tofu_version: 1.12.0
+        terramate_version: 0.17.1-rc1
+        allow_prerelease: true
+    - name: Verify tofu
+      run: tofu version
+    - name: Verify terramate
+      run: terramate version
+
+  test-prerelease-blocked:
+    name: Fail prerelease
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Prerelease without allow_prerelease should fail
+      id: should_fail
+      continue-on-error: true
+      uses: ./
+      with:
+        tofu_version: 1.12.0
+        terramate_version: 0.17.1-rc1
+    - name: Confirm step failed
+      env:
+        OUTCOME: ${{ steps.should_fail.outcome }}
+      run: |
+        if [[ "${OUTCOME}" != "failure" ]]; then
+          echo "Expected step to fail but it did not"
+          exit 1
+        fi
