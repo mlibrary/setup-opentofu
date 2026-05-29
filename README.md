@@ -11,9 +11,11 @@ Installs OpenTofu, and optionally Terramate, from GitHub releases.
 steps:
 - uses: mlibrary/setup-opentofu
   with:
-    tofu_version: 1.12.0       # required
-    terramate_version: 0.17.0  # optional, only needed if you want to install Terramate
-    allow_prerelease: false    # optional, set to true to allow prerelease versions (e.g. 1.8.0-rc1)
+    tofu_version: 1.12.0            # required unless tofu_version_file is set
+    tofu_version_file: .opentofu-version # optional, takes precedence over tofu_version
+    terramate_version: 0.17.0       # optional, only needed if you want to install Terramate
+    terramate_version_file: .terramate-version # optional, takes precedence over terramate_version
+    allow_prerelease: false         # optional, set to true to allow prerelease versions (e.g. 1.8.0-rc1)
 ```
 
 ## Internals
