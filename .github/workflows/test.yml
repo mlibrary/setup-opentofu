@@ -38,14 +38,30 @@ jobs:
       if: ${{ matrix.include_terramate }}
       run: terramate version
 
-  test-prerelease:
-    name: "${{ matrix.runner }}: install prerelease"
+  test-version-files:
+    name: install w/ version files
     permissions:
       contents: read
-    strategy:
-      matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-24.04-arm
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Install OpenTofu and Terramate w/ version files
+      uses: ./
+      with:
+        tofu_version_file: .github/fixtures/opentofu-version
+        terramate_version_file: .github/fixtures/terramate-version
+    - name: Verify tofu
+      run: tofu version
+    - name: Verify terramate
+      run: terramate version
+
+  test-prerelease:
+    name: install prerelease
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:

@@ -1,0 +1,7 @@
+	0.17.0   					    
+This file is a test fixture.
+// If for some reason you to put a comment in a version file, just put it on line 2 (or later).
+# We only read line 1. Whitespace is stripped from the ends of the version string.
+()
+	{} # this is all ignored, even if full of junk chars
+;

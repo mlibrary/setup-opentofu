@@ -24,6 +24,18 @@ validate_version() {
   onoe "${name} version '${version}' is not a valid version string."
 }
 
+read_version_file() {
+  local name="$1"
+  local file="$2"
+  [[ -f "${file}" ]] || onoe "${name} version file '${file}' does not exist."
+  local ver
+  read -r ver < "${file}" || true
+  ver="${ver#"${ver%%[![:space:]]*}"}"
+  ver="${ver%"${ver##*[![:space:]]}"}"
+  [[ -n "${ver}" ]] || onoe "${name} version file '${file}' is empty."
+  echo "${ver}"
+}
+
 install_tofu() {
   local ver="$1"
   local arch="$2"
@@ -90,7 +102,17 @@ install_terramate() {
   sudo dpkg -i "${dir}/${deb}"
 }
 
+if [[ -n "${TOFU_VERSION_FILE:-}" ]]; then
+  TOFU_VERSION="$(read_version_file "tofu_version_file" "${TOFU_VERSION_FILE}")"
+fi
+if [[ -z "${TOFU_VERSION:-}" ]]; then
+  onoe "Either tofu_version or tofu_version_file must be provided."
+fi
 validate_version "tofu_version" "${TOFU_VERSION}"
+
+if [[ -n "${TERRAMATE_VERSION_FILE:-}" ]]; then
+  TERRAMATE_VERSION="$(read_version_file "terramate_version_file" "${TERRAMATE_VERSION_FILE}")"
+fi
 if [[ -n "${TERRAMATE_VERSION:-}" ]]; then
   validate_version "terramate_version" "${TERRAMATE_VERSION}"
 fi
