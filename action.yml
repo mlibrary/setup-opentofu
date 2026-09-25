@@ -26,7 +26,8 @@ inputs:
 runs:
   using: composite
   steps:
-    - shell: bash
+    - id: resolve
+      shell: bash
       env:
         TOFU_VERSION: ${{ inputs.tofu_version }}
         TOFU_VERSION_FILE: ${{ inputs.tofu_version_file }}
@@ -34,4 +35,35 @@ runs:
         TERRAMATE_VERSION_FILE: ${{ inputs.terramate_version_file }}
         ALLOW_PRERELEASE: ${{ inputs.allow_prerelease }}
         GH_ACTION_PATH: ${{ github.action_path }}
+      run: ${GH_ACTION_PATH}/resolve.sh
+    - id: cache-tofu
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.resolve.outputs.tofu_dir }}
+        key: setup-opentofu-tofu-${{ steps.resolve.outputs.tofu_version }}-${{ runner.os }}-${{ steps.resolve.outputs.arch }}
+    - id: cache-terramate
+      if: ${{ steps.resolve.outputs.terramate_version != '' }}
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.resolve.outputs.terramate_dir }}
+        key: setup-opentofu-terramate-${{ steps.resolve.outputs.terramate_version }}-${{ runner.os }}-${{ steps.resolve.outputs.arch }}
+    - shell: bash
+      env:
+        TOFU_VERSION: ${{ steps.resolve.outputs.tofu_version }}
+        TOFU_DIR: ${{ steps.resolve.outputs.tofu_dir }}
+        TOFU_CACHE_HIT: ${{ steps.cache-tofu.outputs.cache-hit }}
+        TERRAMATE_VERSION: ${{ steps.resolve.outputs.terramate_version }}
+        TERRAMATE_DIR: ${{ steps.resolve.outputs.terramate_dir }}
+        TERRAMATE_CACHE_HIT: ${{ steps.cache-terramate.outputs.cache-hit }}
+        ARCH: ${{ steps.resolve.outputs.arch }}
+        GH_ACTION_PATH: ${{ github.action_path }}
       run: ${GH_ACTION_PATH}/install.sh
+    - shell: bash
+      env:
+        TOFU_DIR: ${{ steps.resolve.outputs.tofu_dir }}
+        TERRAMATE_DIR: ${{ steps.resolve.outputs.terramate_dir }}
+      run: |
+        echo "${TOFU_DIR}" >> "${GITHUB_PATH}"
+        if [[ -n "${TERRAMATE_DIR:-}" ]]; then
+          echo "${TERRAMATE_DIR}" >> "${GITHUB_PATH}"
+        fi

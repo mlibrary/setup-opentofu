@@ -1,69 +1,39 @@
 #!/bin/bash
 set -euo pipefail
 
-STABLE_RE='^[0-9]+\.[0-9]+\.[0-9]+$'
-PRERELEASE_RE='^[0-9]+\.[0-9]+\.[0-9]+-[a-z]+[0-9]+$'
-
-onoe() {
-  echo "::error::$1" >&2
-  exit 1
-}
-
-validate_version() {
-  local name="$1"
-  local version="$2"
-  if [[ "$version" =~ $STABLE_RE ]]; then
-    return 0
-  fi
-  if [[ "$version" =~ $PRERELEASE_RE ]]; then
-    if [[ "${ALLOW_PRERELEASE:-false}" == "true" ]]; then
-      return 0
-    fi
-    onoe "${name} version '${version}' is a prerelease. Set allow_prerelease: true to use prerelease versions."
-  fi
-  onoe "${name} version '${version}' is not a valid version string."
-}
-
-read_version_file() {
-  local name="$1"
-  local file="$2"
-  [[ -f "${file}" ]] || onoe "${name} version file '${file}' does not exist."
-  local ver
-  read -r ver < "${file}" || true
-  ver="${ver#"${ver%%[![:space:]]*}"}"
-  ver="${ver%"${ver##*[![:space:]]}"}"
-  [[ -n "${ver}" ]] || onoe "${name} version file '${file}' is empty."
-  echo "${ver}"
-}
+source "${GH_ACTION_PATH}/lib.sh"
 
 install_tofu() {
   local ver="$1"
   local arch="$2"
   local dir="$3"
-  local deb="tofu_${ver}_${arch}.deb"
+  local work="$4"
+  local tgz="tofu_${ver}_linux_${arch}.tar.gz"
   local sums="tofu_${ver}_SHA256SUMS"
   local gpgsig="tofu_${ver}_SHA256SUMS.gpgsig"
   local base_url="https://github.com/opentofu/opentofu/releases/download/v${ver}"
 
   echo "Downloading OpenTofu ${ver} (${arch})..."
-  curl -fsSL -o "${dir}/${deb}"    "${base_url}/${deb}"
-  curl -fsSL -o "${dir}/${sums}"   "${base_url}/${sums}"
-  curl -fsSL -o "${dir}/${gpgsig}" "${base_url}/${gpgsig}"
+  curl -fsSL -o "${work}/${tgz}"    "${base_url}/${tgz}"
+  curl -fsSL -o "${work}/${sums}"   "${base_url}/${sums}"
+  curl -fsSL -o "${work}/${gpgsig}" "${base_url}/${gpgsig}"
 
   echo "Verifying OpenTofu GPG signature..."
   local gnupghome
   gnupghome="$(mktemp -d)"
-  gpg --homedir "${gnupghome}" --import "${BASH_SOURCE[0]%/*}/opentofu.gpg" 2>/dev/null
-  gpg --homedir "${gnupghome}" --verify "${dir}/${gpgsig}" "${dir}/${sums}" \
+  gpg --homedir "${gnupghome}" --import "${GH_ACTION_PATH}/opentofu.gpg" 2>/dev/null
+  gpg --homedir "${gnupghome}" --verify "${work}/${gpgsig}" "${work}/${sums}" \
     || onoe "OpenTofu GPG signature verification failed"
   rm -rf "${gnupghome}"
 
   echo "Verifying OpenTofu checksum..."
-  (cd "${dir}" && grep "${deb}" "${sums}" | sha256sum --check --status) \
+  (cd "${work}" && grep "${tgz}" "${sums}" | sha256sum --check --status) \
     || onoe "OpenTofu checksum verification failed"
 
-  echo "Installing OpenTofu..."
-  sudo dpkg -i "${dir}/${deb}"
+  echo "Installing OpenTofu to ${dir}..."
+  mkdir -p "${dir}"
+  tar -xzf "${work}/${tgz}" -C "${dir}" tofu
+  chmod +x "${dir}/tofu"
 }
 
 TERRAMATE_COSIGN_PUB='-----BEGIN PUBLIC KEY-----
@@ -75,60 +45,61 @@ install_terramate() {
   local ver="$1"
   local arch="$2"
   local dir="$3"
-  local deb="terramate_${ver}_linux_${arch}.deb"
+  local work="$4"
+  local tgz="terramate_${ver}_linux_${arch}.tar.gz"
   local sums="checksums.txt"
   local sig="checksums.txt.sig"
   local pub="cosign.pub"
   local base_url="https://github.com/terramate-io/terramate/releases/download/v${ver}"
 
-  echo "${TERRAMATE_COSIGN_PUB}" > "${dir}/${pub}"
+  echo "${TERRAMATE_COSIGN_PUB}" > "${work}/${pub}"
 
   echo "Downloading Terramate ${ver} (${arch})..."
-  curl -fsSL -o "${dir}/${deb}"  "${base_url}/${deb}"
-  curl -fsSL -o "${dir}/${sums}" "${base_url}/${sums}"
-  curl -fsSL -o "${dir}/${sig}"  "${base_url}/${sig}"
+  curl -fsSL -o "${work}/${tgz}"  "${base_url}/${tgz}"
+  curl -fsSL -o "${work}/${sums}" "${base_url}/${sums}"
+  curl -fsSL -o "${work}/${sig}"  "${base_url}/${sig}"
 
   echo "Verifying Terramate signature..."
-  base64 -d "${dir}/${sig}" > "${dir}/checksums.txt.sig.bin" \
+  base64 -d "${work}/${sig}" > "${work}/checksums.txt.sig.bin" \
     || onoe "Failed to decode Terramate signature file"
-  openssl dgst -sha256 -verify "${dir}/${pub}" -signature "${dir}/checksums.txt.sig.bin" "${dir}/${sums}" \
+  openssl dgst -sha256 -verify "${work}/${pub}" -signature "${work}/checksums.txt.sig.bin" "${work}/${sums}" \
     || onoe "Terramate signature verification failed"
 
   echo "Verifying Terramate checksum..."
-  (cd "${dir}" && grep "${deb}" "${sums}" | sha256sum --check --status) \
+  (cd "${work}" && grep "${tgz}" "${sums}" | sha256sum --check --status) \
     || onoe "Terramate checksum verification failed"
 
-  echo "Installing Terramate..."
-  sudo dpkg -i "${dir}/${deb}"
+  echo "Installing Terramate to ${dir}..."
+  mkdir -p "${dir}"
+  tar -xzf "${work}/${tgz}" -C "${dir}" terramate
+  chmod +x "${dir}/terramate"
 }
 
-if [[ -n "${TOFU_VERSION_FILE:-}" ]]; then
-  TOFU_VERSION="$(read_version_file "tofu_version_file" "${TOFU_VERSION_FILE}")"
-fi
-if [[ -z "${TOFU_VERSION:-}" ]]; then
-  onoe "Either tofu_version or tofu_version_file must be provided."
-fi
-validate_version "tofu_version" "${TOFU_VERSION}"
+[[ -n "${TOFU_VERSION:-}" ]] || onoe "TOFU_VERSION is not set."
+[[ -n "${TOFU_DIR:-}" ]] || onoe "TOFU_DIR is not set."
+[[ -n "${ARCH:-}" ]] || onoe "ARCH is not set."
 
-if [[ -n "${TERRAMATE_VERSION_FILE:-}" ]]; then
-  TERRAMATE_VERSION="$(read_version_file "terramate_version_file" "${TERRAMATE_VERSION_FILE}")"
-fi
-if [[ -n "${TERRAMATE_VERSION:-}" ]]; then
-  validate_version "terramate_version" "${TERRAMATE_VERSION}"
-fi
-
-case "${MACHTYPE}" in
-  x86_64*)  ARCH="amd64" ;;
-  aarch64*) ARCH="arm64" ;;
-  *) onoe "Unsupported architecture: ${MACHTYPE}" ;;
-esac
 WORK_DIR="$(mktemp -d "${RUNNER_TEMP}/setup-opentofu.XXXXXXXXXX")"
 trap 'rm -rf "${WORK_DIR}"' EXIT
 
-install_tofu "${TOFU_VERSION}" "${ARCH}" "${WORK_DIR}"
+if [[ "${TOFU_CACHE_HIT:-}" == "true" ]]; then
+  echo "Using cached OpenTofu ${TOFU_VERSION} (${ARCH})."
+else
+  install_tofu "${TOFU_VERSION}" "${ARCH}" "${TOFU_DIR}" "${WORK_DIR}"
+fi
 
 if [[ -n "${TERRAMATE_VERSION:-}" ]]; then
-  install_terramate "${TERRAMATE_VERSION}" "${ARCH}" "${WORK_DIR}"
+  [[ -n "${TERRAMATE_DIR:-}" ]] || onoe "TERRAMATE_DIR is not set."
+  # Terramate's tar.gz releases use x86_64 rather than amd64 in their file names.
+  case "${ARCH}" in
+    amd64) TERRAMATE_ARCH="x86_64" ;;
+    *) TERRAMATE_ARCH="${ARCH}" ;;
+  esac
+  if [[ "${TERRAMATE_CACHE_HIT:-}" == "true" ]]; then
+    echo "Using cached Terramate ${TERRAMATE_VERSION} (${ARCH})."
+  else
+    install_terramate "${TERRAMATE_VERSION}" "${TERRAMATE_ARCH}" "${TERRAMATE_DIR}" "${WORK_DIR}"
+  fi
 fi
 
 echo "Done."

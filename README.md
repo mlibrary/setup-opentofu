@@ -2,9 +2,9 @@
 
 Installs OpenTofu, and optionally Terramate, from GitHub releases.
 - Performs signature verification for both tofu and terramate.
-- Zero recursive dependencies on other actions.
+- Only dependency on another action is [actions/cache](https://github.com/actions/cache), used to cache downloaded binaries across runs.
 - Written in bash. Very short. Simplicity (and thus transparency) over features.
-- Tested on `ubuntu-24.04` and `ubuntu-24.04-arm`. Linux only. Debian based distros only (requires dpkg).
+- Tested on `ubuntu-24.04` and `ubuntu-24.04-arm`. Linux only.
 
 ## Usage
 ```
@@ -32,7 +32,10 @@ To establish trust anchors, both pub keys are embedded in this action:
 - Terramate key is directly embedded in `install.sh`. This signature was downloaded from the [terramate release page](https://github.com/terramate-io/terramate/releases), where it can be found attached to each release as `cosign.pub`.
 
 ### Install
-This action installs `.deb` packages, so works only Debian based systems (Debian, Ubuntu, etc).
+This action downloads the `.tar.gz` release archives (rather than `.deb` packages), extracts the binaries, and installs them to `$RUNNER_TOOL_CACHE/<tool>/<version>/<arch>` (falling back to `~/.cache/setup-opentofu-tool-cache` if `RUNNER_TOOL_CACHE` isn't set), following the same convention used by `actions/toolkit`'s tool-cache. That directory is then added to `$PATH` via `$GITHUB_PATH`, so `tofu`/`terramate` are available to subsequent steps without root/sudo access.
+
+### Caching
+[actions/cache](https://github.com/actions/cache) is used to cache each tool's install directory, keyed on OS, architecture, and version, so repeat runs with the same versions skip the download/verify/extract steps entirely.
 
 ## Roadmap
-We're not using [sigstore/cosign-installer](https://github.com/sigstore/cosign-installer), because that would add an action dependency. [Cosign is in Ubuntu 26.04](https://packages.ubuntu.com/resolute/cosign), so we'll likely switch to using the Ubuntu package, and switch to using the OpenTofu cosign signatures sometime after GitHub supports runners on 26.04. If this happens it will be a new major release, and will drop all support for 24.04.
+We're not using [sigstore/cosign-installer](https://github.com/sigstore/cosign-installer), because that would add another action dependency. [Cosign is in Ubuntu 26.04](https://packages.ubuntu.com/resolute/cosign), so we'll likely switch to using the Ubuntu package, and switch to using the OpenTofu cosign signatures sometime after GitHub supports runners on 26.04. If this happens it will be a new major release, and will drop all support for 24.04.
