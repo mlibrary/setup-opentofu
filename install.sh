@@ -5,26 +5,35 @@ source "${GH_ACTION_PATH}/lib.sh"
 
 install_tofu() {
   local ver="$1"
-  local arch="$2"
-  local dir="$3"
-  local work="$4"
-  local tgz="tofu_${ver}_linux_${arch}.tar.gz"
+  local os="$2"
+  local arch="$3"
+  local dir="$4"
+  local work="$5"
+  local tgz="tofu_${ver}_${os}_${arch}.tar.gz"
   local sums="tofu_${ver}_SHA256SUMS"
-  local gpgsig="tofu_${ver}_SHA256SUMS.gpgsig"
+  local sig="tofu_${ver}_SHA256SUMS.sig"
+  local cert="tofu_${ver}_SHA256SUMS.pem"
   local base_url="https://github.com/opentofu/opentofu/releases/download/v${ver}"
+  # OpenTofu release workflows run from a release branch named after the
+  # version's major.minor (e.g. v1.12), and sign SHA256SUMS keylessly via
+  # GitHub Actions OIDC.
+  local major_minor="${ver%.*}"
+  local cert_identity_regexp="^https://github\\.com/opentofu/opentofu/\\.github/workflows/release\\.yml@refs/heads/v${major_minor}$"
 
-  echo "Downloading OpenTofu ${ver} (${arch})..."
-  curl -fsSL -o "${work}/${tgz}"    "${base_url}/${tgz}"
-  curl -fsSL -o "${work}/${sums}"   "${base_url}/${sums}"
-  curl -fsSL -o "${work}/${gpgsig}" "${base_url}/${gpgsig}"
+  echo "Downloading OpenTofu ${ver} (${os}/${arch})..."
+  curl -fsSL -o "${work}/${tgz}"  "${base_url}/${tgz}"
+  curl -fsSL -o "${work}/${sums}" "${base_url}/${sums}"
+  curl -fsSL -o "${work}/${sig}"  "${base_url}/${sig}"
+  curl -fsSL -o "${work}/${cert}" "${base_url}/${cert}"
 
-  echo "Verifying OpenTofu GPG signature..."
-  local gnupghome
-  gnupghome="$(mktemp -d)"
-  gpg --homedir "${gnupghome}" --import "${GH_ACTION_PATH}/opentofu.gpg" 2>/dev/null
-  gpg --homedir "${gnupghome}" --verify "${work}/${gpgsig}" "${work}/${sums}" \
-    || onoe "OpenTofu GPG signature verification failed"
-  rm -rf "${gnupghome}"
+  echo "Verifying OpenTofu cosign signature..."
+  cosign verify-blob \
+    --certificate "${work}/${cert}" \
+    --signature "${work}/${sig}" \
+    --certificate-identity-regexp "${cert_identity_regexp}" \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    "${work}/${sums}" \
+    || onoe "OpenTofu cosign signature verification failed"
 
   echo "Verifying OpenTofu checksum..."
   (cd "${work}" && grep "${tgz}" "${sums}" | sha256sum --check --status) \
@@ -43,10 +52,11 @@ I5KPGKOaYzzYII4Vk6BzG0tvW7LgeEbR7js4lDCv0yMRHtrDe7h1D1ymHg==
 
 install_terramate() {
   local ver="$1"
-  local arch="$2"
-  local dir="$3"
-  local work="$4"
-  local tgz="terramate_${ver}_linux_${arch}.tar.gz"
+  local os="$2"
+  local arch="$3"
+  local dir="$4"
+  local work="$5"
+  local tgz="terramate_${ver}_${os}_${arch}.tar.gz"
   local sums="checksums.txt"
   local sig="checksums.txt.sig"
   local pub="cosign.pub"
@@ -54,16 +64,17 @@ install_terramate() {
 
   echo "${TERRAMATE_COSIGN_PUB}" > "${work}/${pub}"
 
-  echo "Downloading Terramate ${ver} (${arch})..."
+  echo "Downloading Terramate ${ver} (${os}/${arch})..."
   curl -fsSL -o "${work}/${tgz}"  "${base_url}/${tgz}"
   curl -fsSL -o "${work}/${sums}" "${base_url}/${sums}"
   curl -fsSL -o "${work}/${sig}"  "${base_url}/${sig}"
 
-  echo "Verifying Terramate signature..."
-  base64 -d "${work}/${sig}" > "${work}/checksums.txt.sig.bin" \
-    || onoe "Failed to decode Terramate signature file"
-  openssl dgst -sha256 -verify "${work}/${pub}" -signature "${work}/checksums.txt.sig.bin" "${work}/${sums}" \
-    || onoe "Terramate signature verification failed"
+  echo "Verifying Terramate cosign signature..."
+  cosign verify-blob \
+    --key "${work}/${pub}" \
+    --signature "${work}/${sig}" \
+    "${work}/${sums}" \
+    || onoe "Terramate cosign signature verification failed"
 
   echo "Verifying Terramate checksum..."
   (cd "${work}" && grep "${tgz}" "${sums}" | sha256sum --check --status) \
@@ -77,15 +88,16 @@ install_terramate() {
 
 [[ -n "${TOFU_VERSION:-}" ]] || onoe "TOFU_VERSION is not set."
 [[ -n "${TOFU_DIR:-}" ]] || onoe "TOFU_DIR is not set."
+[[ -n "${OS:-}" ]] || onoe "OS is not set."
 [[ -n "${ARCH:-}" ]] || onoe "ARCH is not set."
 
 WORK_DIR="$(mktemp -d "${RUNNER_TEMP}/setup-opentofu.XXXXXXXXXX")"
 trap 'rm -rf "${WORK_DIR}"' EXIT
 
 if [[ "${TOFU_CACHE_HIT:-}" == "true" ]]; then
-  echo "Using cached OpenTofu ${TOFU_VERSION} (${ARCH})."
+  echo "Using cached OpenTofu ${TOFU_VERSION} (${OS}/${ARCH})."
 else
-  install_tofu "${TOFU_VERSION}" "${ARCH}" "${TOFU_DIR}" "${WORK_DIR}"
+  install_tofu "${TOFU_VERSION}" "${OS}" "${ARCH}" "${TOFU_DIR}" "${WORK_DIR}"
 fi
 
 if [[ -n "${TERRAMATE_VERSION:-}" ]]; then
@@ -96,9 +108,9 @@ if [[ -n "${TERRAMATE_VERSION:-}" ]]; then
     *) TERRAMATE_ARCH="${ARCH}" ;;
   esac
   if [[ "${TERRAMATE_CACHE_HIT:-}" == "true" ]]; then
-    echo "Using cached Terramate ${TERRAMATE_VERSION} (${ARCH})."
+    echo "Using cached Terramate ${TERRAMATE_VERSION} (${OS}/${ARCH})."
   else
-    install_terramate "${TERRAMATE_VERSION}" "${TERRAMATE_ARCH}" "${TERRAMATE_DIR}" "${WORK_DIR}"
+    install_terramate "${TERRAMATE_VERSION}" "${OS}" "${TERRAMATE_ARCH}" "${TERRAMATE_DIR}" "${WORK_DIR}"
   fi
 fi
 

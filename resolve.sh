@@ -20,21 +20,22 @@ if [[ -n "${TERRAMATE_VERSION:-}" ]]; then
   validate_version "terramate_version" "${TERRAMATE_VERSION}"
 fi
 
-resolve_arch
+resolve_platform
 
 # Follow GitHub Actions tool-cache conventions (as used by actions/toolkit's
-# tool-cache + core.addPath): <tool cache root>/<tool>/<version>/<arch>.
+# tool-cache + core.addPath): <tool cache root>/<tool>/<version>/<os>-<arch>.
 TOOL_CACHE_ROOT="${RUNNER_TOOL_CACHE:-${HOME}/.cache/setup-opentofu-tool-cache}"
-TOFU_DIR="${TOOL_CACHE_ROOT}/tofu/${TOFU_VERSION}/${ARCH}"
+TOFU_DIR="${TOOL_CACHE_ROOT}/tofu/${TOFU_VERSION}/${OS}-${ARCH}"
 
 {
   echo "tofu_version=${TOFU_VERSION}"
+  echo "os=${OS}"
   echo "arch=${ARCH}"
   echo "tofu_dir=${TOFU_DIR}"
 } >> "${GITHUB_OUTPUT}"
 
 if [[ -n "${TERRAMATE_VERSION:-}" ]]; then
-  TERRAMATE_DIR="${TOOL_CACHE_ROOT}/terramate/${TERRAMATE_VERSION}/${ARCH}"
+  TERRAMATE_DIR="${TOOL_CACHE_ROOT}/terramate/${TERRAMATE_VERSION}/${OS}-${ARCH}"
   {
     echo "terramate_version=${TERRAMATE_VERSION}"
     echo "terramate_dir=${TERRAMATE_DIR}"

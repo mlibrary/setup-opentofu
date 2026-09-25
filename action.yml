@@ -47,6 +47,9 @@ runs:
       with:
         path: ${{ steps.resolve.outputs.terramate_dir }}
         key: setup-opentofu-terramate-${{ steps.resolve.outputs.terramate_version }}-${{ runner.os }}-${{ steps.resolve.outputs.arch }}
+    - id: install-cosign
+      if: ${{ steps.cache-tofu.outputs.cache-hit != 'true' || (steps.resolve.outputs.terramate_version != '' && steps.cache-terramate.outputs.cache-hit != 'true') }}
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
     - shell: bash
       env:
         TOFU_VERSION: ${{ steps.resolve.outputs.tofu_version }}
@@ -55,6 +58,7 @@ runs:
         TERRAMATE_VERSION: ${{ steps.resolve.outputs.terramate_version }}
         TERRAMATE_DIR: ${{ steps.resolve.outputs.terramate_dir }}
         TERRAMATE_CACHE_HIT: ${{ steps.cache-terramate.outputs.cache-hit }}
+        OS: ${{ steps.resolve.outputs.os }}
         ARCH: ${{ steps.resolve.outputs.arch }}
         GH_ACTION_PATH: ${{ github.action_path }}
       run: ${GH_ACTION_PATH}/install.sh

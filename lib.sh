@@ -36,12 +36,17 @@ read_version_file() {
   echo "${ver}"
 }
 
-# Sets ARCH to the GitHub Actions convention arch name (amd64/arm64), based on
-# the current machine's architecture.
-resolve_arch() {
-  case "${MACHTYPE}" in
-    x86_64*)  ARCH="amd64" ;;
-    aarch64*) ARCH="arm64" ;;
-    *) onoe "Unsupported architecture: ${MACHTYPE}" ;;
+# Sets OS to "linux" or "darwin", and ARCH to the GitHub Actions convention
+# arch name (amd64/arm64), based on the current machine.
+resolve_platform() {
+  case "$(uname -s)" in
+    Linux)  OS="linux" ;;
+    Darwin) OS="darwin" ;;
+    *) onoe "Unsupported OS: $(uname -s)" ;;
+  esac
+  case "$(uname -m)" in
+    x86_64)  ARCH="amd64" ;;
+    arm64|aarch64) ARCH="arm64" ;;
+    *) onoe "Unsupported architecture: $(uname -m)" ;;
   esac
 }
